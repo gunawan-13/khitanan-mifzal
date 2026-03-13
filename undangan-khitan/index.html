@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Admin Dashboard - Undangan Khitan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- FileSaver.js untuk menyimpan file -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        /* Custom styles */
+        .badge-hadir {
+            background-color: #d1fae5;
+            color: #065f46;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .badge-tidak {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .badge-pending {
+            background-color: #fef9c3;
+            color: #92400e;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .badge-ragu {
+            background-color: #e0f2fe;
+            color: #0369a1;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Fix for desktop menu */
+        @media (min-width: 640px) {
+            .desktop-menu {
+                display: flex !important;
+            }
+            .mobile-menu {
+                display: none !important;
+            }
+        }
+        
+        @media (max-width: 639px) {
+            .desktop-menu {
+                display: none !important;
+            }
+        }
+
+        /* Animasi untuk mobile menu */
+        .mobile-menu {
+            transition: all 0.3s ease-in-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            visibility: hidden;
+        }
+
+        .mobile-menu.open {
+            max-height: 500px;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Loading overlay untuk export */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Preview undangan */
+        .invitation-preview-card {
+            background: linear-gradient(135deg, #0a0f1a, #1a1c2c);
+            border: 1px solid #D4AF37;
+            border-radius: 12px;
+            padding: 1rem;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Modal Tambah/Edit Tamu -->
+    <div id="tamuModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-auto">
+            <div class="px-4 md:px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-800" id="modal-title">Tambah Tamu</h3>
+                <button onclick="closeTamuModal()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="tamuForm" class="p-4 md:p-6 space-y-4">
+                <input type="hidden" id="tamu-id">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>
+                    <input type="text" id="nama" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">No. WhatsApp</label>
+                    <input type="text" id="wa" placeholder="081234567890"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select id="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm">
+                        <option value="pending">Pending</option>
+                        <option value="hadir">Hadir</option>
+                        <option value="tidak">Tidak Hadir</option>
+                        <option value="ragu">Ragu-ragu</option>
+                    </select>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2 justify-end">
+                    <button type="button" onclick="closeTamuModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none text-sm order-2 sm:order-1">
+                        Batal
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none text-sm order-1 sm:order-2">
+                        Simpan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Overlay untuk Export -->
+    <div id="exportLoading" class="loading-overlay">
+        <div class="bg-white p-6 rounded-xl shadow-xl text-center">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p class="text-gray-700 font-semibold">Menyiapkan data...</p>
+            <p class="text-sm text-gray-500 mt-2">Mohon tunggu sebentar</p>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow-lg fixed w-full z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-14 sm:h-16 items-center">
+                <div class="flex items-center">
+                    <i class="fas fa-mosque text-green-600 text-2xl mr-2"></i>
+                    <span class="font-semibold text-xl text-gray-800">Admin Khitan</span>
+                </div>
+                
+                <!-- Desktop menu -->
+                <div class="desktop-menu hidden sm:flex items-center space-x-4">
+                    <a href="javascript:void(0)" class="nav-link px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center text-sm" data-section="dashboard">
+                        <i class="fas fa-chart-pie mr-2"></i>Dashboard
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center text-sm" data-section="tamu">
+                        <i class="fas fa-users mr-2"></i>Data Tamu
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center text-sm" data-section="donasi">
+                        <i class="fas fa-hand-holding-heart mr-2"></i>Donasi
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center text-sm" data-section="generator">
+                        <i class="fas fa-link mr-2"></i>Generator
+                    </a>
+                    <button onclick="openTamuModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center text-sm">
+                        <i class="fas fa-plus mr-2"></i>Tambah Tamu
+                    </button>
+                    <button onclick="exportAllData()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center text-sm">
+                        <i class="fas fa-file-excel mr-2"></i>Export Excel
+                    </button>
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="flex items-center sm:hidden">
+                    <button id="mobile-menu-button" class="text-gray-500 hover:text-gray-600 focus:outline-none z-50 p-2" aria-label="Menu">
+                        <i class="fas fa-bars text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile menu dropdown -->
+        <div id="mobile-menu" class="mobile-menu fixed top-14 left-0 w-full bg-white shadow-lg z-40 sm:hidden">
+            <div class="flex flex-col py-2 px-4 space-y-2 border-t border-gray-200">
+                <a href="javascript:void(0)" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center" data-section="dashboard">
+                    <i class="fas fa-chart-pie mr-3 w-5"></i>Dashboard
+                </a>
+                <a href="javascript:void(0)" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center" data-section="tamu">
+                    <i class="fas fa-users mr-3 w-5"></i>Data Tamu
+                </a>
+                <a href="javascript:void(0)" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center" data-section="donasi">
+                    <i class="fas fa-hand-holding-heart mr-3 w-5"></i>Donasi
+                </a>
+                <a href="javascript:void(0)" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center" data-section="generator">
+                    <i class="fas fa-link mr-3 w-5"></i>Generator
+                </a>
+                <div class="border-t border-gray-200 my-2"></div>
+                <button onclick="openTamuModal()" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center w-full text-left">
+                    <i class="fas fa-plus mr-3 w-5 text-green-600"></i>Tambah Tamu
+                </button>
+                <button onclick="exportAllData()" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center w-full text-left">
+                    <i class="fas fa-file-excel mr-3 w-5 text-blue-600"></i>Export Data Excel
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="pt-20 pb-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="section mb-10">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Dashboard</h2>
+                <div class="flex items-center mt-2 sm:mt-0">
+                    <span class="text-sm text-gray-500 mr-2">
+                        <i class="fas fa-sync-alt mr-1"></i>Update real-time
+                    </span>
+                    <button onclick="refreshData()" class="text-green-600 hover:text-green-700" title="Refresh data">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">Total Tamu</p>
+                            <h3 class="text-2xl font-bold" id="totalTamu">0</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-users text-green-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">Konfirmasi Hadir</p>
+                            <h3 class="text-2xl font-bold" id="totalHadir">0</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-check-circle text-blue-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">Total Donasi</p>
+                            <h3 class="text-2xl font-bold" id="totalDonasi">Rp 0</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-hand-holding-heart text-yellow-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">Total Kehadiran</p>
+                            <h3 class="text-2xl font-bold" id="totalKehadiran">0</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user-friends text-purple-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabel Data Ucapan & Donasi -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden mt-8">
+                <div class="px-4 md:px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800">Ucapan & Donasi dari Tamu</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[800px]">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ucapan</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nominal Donasi</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metode</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jml Kehadiran</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ucapan-donasi-table" class="divide-y divide-gray-200">
+                            <!-- Data will be inserted via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tamu Management Section -->
+        <section id="tamu" class="section hidden mb-10">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Manajemen Tamu</h2>
+            
+            <div class="flex justify-end mb-4 sm:hidden">
+                <button onclick="openTamuModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm flex items-center">
+                    <i class="fas fa-plus mr-2"></i>Tambah Tamu
+                </button>
+            </div>
+            
+            <!-- Search and Filter -->
+            <div class="bg-white rounded-xl shadow-md p-4 md:p-6 mb-6">
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <div class="flex-1">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                            <input type="text" id="search-input" placeholder="Cari tamu..." 
+                                class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm md:text-base">
+                        </div>
+                    </div>
+                    <div class="sm:w-48">
+                        <select id="filter-status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm md:text-base">
+                            <option value="all">Semua Status</option>
+                            <option value="hadir">Hadir</option>
+                            <option value="tidak">Tidak Hadir</option>
+                            <option value="pending">Pending</option>
+                            <option value="ragu">Ragu-ragu</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CRUD Table -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="px-4 md:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <h3 class="text-lg font-semibold text-gray-800">Daftar Tamu</h3>
+                    <button onclick="openTamuModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm hidden sm:flex items-center">
+                        <i class="fas fa-plus mr-2"></i>Tambah Tamu
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No. WhatsApp</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jml Kehadiran</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Donasi</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Link Undangan</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="crud-table-body" class="divide-y divide-gray-200">
+                            <!-- Data will be inserted via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Donasi Management Section -->
+        <section id="donasi" class="section hidden mb-10">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Manajemen Donasi</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <p class="text-sm text-gray-500 mb-1">Total Donasi</p>
+                    <h3 class="text-2xl font-bold" id="totalDonasiDetail">Rp 0</h3>
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <p class="text-sm text-gray-500 mb-1">Jumlah Donatur</p>
+                    <h3 class="text-2xl font-bold" id="totalDonatur">0</h3>
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <p class="text-sm text-gray-500 mb-1">Donasi Tertinggi</p>
+                    <h3 class="text-2xl font-bold" id="donasiTertinggi">Rp 0</h3>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="px-4 md:px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800">Daftar Donasi</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nominal</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ucapan</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metode</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu</th>
+                            </tr>
+                        </thead>
+                        <tbody id="donasi-table-body" class="divide-y divide-gray-200">
+                            <!-- Data will be inserted via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Generator Section -->
+        <section id="generator" class="section hidden mb-10">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Generator Link Undangan</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Generator Form -->
+                <div class="bg-white rounded-xl shadow-md p-4 md:p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Buat Link Undangan</h3>
+                    
+                    <form id="generator-form" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Pilih Tamu</label>
+                            <select id="guest-select" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm md:text-base">
+                                <option value="">Pilih tamu...</option>
+                                <!-- Options will be loaded via JS -->
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Template Pesan</label>
+                            <select id="message-template" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm md:text-base">
+                                <option value="formal">Formal</option>
+                                <option value="santai">Santai</option>
+                                <option value="islami">Islami</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm md:text-base">
+                            <i class="fas fa-link mr-2"></i>Generate Link
+                        </button>
+                    </form>
+
+                    <!-- Informasi Path -->
+                    <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        <strong>Info:</strong> Link akan mengarah ke file <code class="bg-yellow-100 px-1 rounded">undangan.html</code> di folder yang sama.
+                    </div>
+                </div>
+
+                <!-- Result and Preview -->
+                <div class="bg-white rounded-xl shadow-md p-4 md:p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Hasil Generate</h3>
+                    
+                    <div id="generator-result" class="space-y-4">
+                        <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-2">Link Undangan:</p>
+                            
+                            <!-- Link Display -->
+                            <div class="flex flex-col sm:flex-row gap-2 mb-3">
+                                <input id="generated-link" type="text" readonly 
+                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500" 
+                                    placeholder="Belum digenerate">
+                                <button onclick="copyGeneratedLink()" 
+                                    class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 text-sm flex items-center justify-center gap-2">
+                                    <i class="fas fa-copy"></i>Copy
+                                </button>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <button onclick="testGeneratedLink()" 
+                                    class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm flex items-center gap-2">
+                                    <i class="fas fa-external-link-alt"></i>Test Link
+                                </button>
+                                <button onclick="shareViaWA()" 
+                                    class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm flex items-center gap-2">
+                                    <i class="fab fa-whatsapp"></i>Share WA
+                                </button>
+                                <button onclick="shareViaTelegram()" 
+                                    class="bg-blue-400 text-white px-4 py-2 rounded-lg hover:bg-blue-500 text-sm flex items-center gap-2">
+                                    <i class="fab fa-telegram"></i>Share Telegram
+                                </button>
+                            </div>
+
+                            <!-- Preview Undangan -->
+                            <div id="invitation-preview" class="mt-4 p-4 invitation-preview-card hidden">
+                                <!-- Preview akan diisi oleh JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daftar Tamu untuk Generate Cepat -->
+            <div class="mt-6 bg-white rounded-xl shadow-md p-4 md:p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Generate Cepat per Tamu</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">No</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">WhatsApp</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="quick-generate-table" class="divide-y divide-gray-200">
+                            <!-- Data akan diisi via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDMmOSMDuVpMFgUyPncBWLxAqTAY8oL2eg",
+            authDomain: "khitanan-mifzal-kianu-alfaris.firebaseapp.com",
+            databaseURL: "https://khitanan-mifzal-kianu-alfaris-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "khitanan-mifzal-kianu-alfaris",
+            storageBucket: "khitanan-mifzal-kianu-alfaris.appspot.com",
+            messagingSenderId: "79815626779",
+            appId: "1:79815626779:web:e7971ed8f6f083f869e8be",
+            measurementId: "G-BWC43D9KBZ"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Global variables
+        let guests = [];
+        let donations = [];
+        let currentEditId = null;
+        let dataReady = false;
+
+        // Base URL untuk undangan (GitHub Pages)
+        const INVITATION_URL = 'https://sardifahmiidris.github.io/Khitanan-Mifzal-Kianu-Alfaris/undangan-khitan/undangan.html';
+
+        // ==================== DATABASE FUNCTIONS ====================
+        
+        // Load data from Firebase
+        function loadData() {
+            let tamuLoaded = false;
+            let donasiLoaded = false;
+            
+            function checkReady() {
+                if (tamuLoaded && donasiLoaded) {
+                    dataReady = true;
+                    console.log('Data siap:', guests.length, 'tamu,', donations.length, 'donasi');
+                }
+            }
+            
+            // Load guests (tamu)
+            db.ref('tamu').on('value', (snapshot) => {
+                const data = snapshot.val();
+                guests = data ? Object.entries(data).map(([id, value]) => ({ id, ...value })) : [];
+                tamuLoaded = true;
+                checkReady();
+                updateDashboardStats();
+                loadCrudTable();
+                loadGuestSelect();
+                loadQuickGenerateTable();
+            });
+
+            // Load donations
+            db.ref('donations').on('value', (snapshot) => {
+                const data = snapshot.val();
+                donations = data ? Object.entries(data).map(([id, value]) => ({ id, ...value })) : [];
+                donasiLoaded = true;
+                checkReady();
+                updateDashboardStats();
+                loadUcapanDonasiTable();
+                loadDonasiTable();
+            });
+        }
+
+        // Save tamu
+        function saveTamu(e) {
+            e.preventDefault();
+            
+            const tamuData = {
+                nama: document.getElementById('nama').value,
+                wa: document.getElementById('wa').value,
+                status: document.getElementById('status').value,
+                jumlahKehadiran: 0,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+
+            const id = document.getElementById('tamu-id').value;
+
+            if (id) {
+                // Update existing
+                db.ref('tamu/' + id).update(tamuData)
+                    .then(() => {
+                        showNotification('Data tamu berhasil diupdate!', 'success');
+                        closeTamuModal();
+                    })
+                    .catch(error => showNotification('Error: ' + error.message, 'error'));
+            } else {
+                // Create new
+                db.ref('tamu').push(tamuData)
+                    .then(() => {
+                        showNotification('Data tamu berhasil ditambahkan!', 'success');
+                        closeTamuModal();
+                    })
+                    .catch(error => showNotification('Error: ' + error.message, 'error'));
+            }
+        }
+
+        // Delete tamu
+        function deleteTamu(id) {
+            if (confirm('Apakah Anda yakin ingin menghapus data ini?')) {
+                db.ref('tamu/' + id).remove()
+                    .then(() => showNotification('Data berhasil dihapus!', 'success'))
+                    .catch(error => showNotification('Error: ' + error.message, 'error'));
+            }
+        }
+
+        // Edit tamu
+        function editTamu(id) {
+            const tamu = guests.find(g => g.id === id);
+            if (tamu) {
+                document.getElementById('tamu-id').value = tamu.id;
+                document.getElementById('nama').value = tamu.nama || '';
+                document.getElementById('wa').value = tamu.wa || '';
+                document.getElementById('status').value = tamu.status || 'pending';
+                document.getElementById('modal-title').textContent = 'Edit Tamu';
+                document.getElementById('tamuModal').classList.remove('hidden');
+                document.getElementById('tamuModal').classList.add('flex');
+            }
+        }
+
+        // ==================== UI UPDATE FUNCTIONS ====================
+
+        function updateDashboardStats() {
+            const totalTamu = guests.length;
+            const totalHadir = guests.filter(g => g.status === 'hadir').length;
+            const totalDonasiValue = donations.reduce((sum, d) => sum + (parseInt(d.amount) || 0), 0);
+            const totalKehadiran = guests.reduce((sum, g) => sum + (parseInt(g.jumlahKehadiran) || 0), 0) + 
+                                   donations.reduce((sum, d) => sum + (parseInt(d.attendanceCount) || 0), 0);
+
+            document.getElementById('totalTamu').textContent = totalTamu;
+            document.getElementById('totalHadir').textContent = totalHadir;
+            document.getElementById('totalDonasi').textContent = formatRupiah(totalDonasiValue);
+            document.getElementById('totalKehadiran').textContent = totalKehadiran;
+
+            // Donasi detail
+            document.getElementById('totalDonasiDetail').textContent = formatRupiah(totalDonasiValue);
+            document.getElementById('totalDonatur').textContent = donations.length;
+            
+            const tertinggi = donations.length > 0 ? Math.max(...donations.map(d => parseInt(d.amount) || 0)) : 0;
+            document.getElementById('donasiTertinggi').textContent = formatRupiah(tertinggi);
+        }
+
+        function loadCrudTable() {
+            const searchTerm = (document.getElementById('search-input')?.value || '').toLowerCase();
+            const filterStatus = document.getElementById('filter-status')?.value || 'all';
+            
+            let filteredGuests = [...guests];
+            
+            // Apply filters
+            if (searchTerm) {
+                filteredGuests = filteredGuests.filter(g => 
+                    (g.nama || '').toLowerCase().includes(searchTerm) || 
+                    (g.wa || '').includes(searchTerm)
+                );
+            }
+            
+            if (filterStatus !== 'all') {
+                filteredGuests = filteredGuests.filter(g => g.status === filterStatus);
+            }
+            
+            // Sort by createdAt descending
+            filteredGuests.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            
+            const tbody = document.getElementById('crud-table-body');
+            if (!tbody) return;
+            
+            if (filteredGuests.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">Tidak ada data</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            filteredGuests.forEach((guest, index) => {
+                const guestDonations = donations.filter(d => d.guestId === guest.id);
+                const totalDonasiGuest = guestDonations.reduce((sum, d) => sum + (parseInt(d.amount) || 0), 0);
+                
+                html += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 md:px-6 py-4 text-sm">${index + 1}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm font-medium">${escapeHtml(guest.nama || '')}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm">${escapeHtml(guest.wa || '-')}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm">
+                            <span class="badge-${guest.status || 'pending'}">${getStatusLabel(guest.status)}</span>
+                        </td>
+                        <td class="px-4 md:px-6 py-4 text-sm">${guest.jumlahKehadiran || 0}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm">${formatRupiah(totalDonasiGuest)}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm">
+                            <button onclick="generateGuestLink('${guest.id}')" class="text-blue-600 hover:text-blue-800 mr-2" title="Generate Link">
+                                <i class="fas fa-link"></i>
+                            </button>
+                            <button onclick="copyGuestLink('${guest.id}')" class="text-green-600 hover:text-green-800" title="Copy Link">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </td>
+                        <td class="px-4 md:px-6 py-4 text-sm">
+                            <button onclick="editTamu('${guest.id}')" class="text-blue-600 hover:text-blue-800 mr-3">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteTamu('${guest.id}')" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+        }
+
+        function loadUcapanDonasiTable() {
+            const tbody = document.getElementById('ucapan-donasi-table');
+            if (!tbody) return;
+            
+            const sortedDonations = [...donations].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            
+            if (sortedDonations.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">Belum ada donasi</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            sortedDonations.slice(0, 20).forEach((donation) => {
+                html += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 md:px-6 py-4 text-sm">${escapeHtml(donation.name || '-')}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm max-w-xs truncate">${escapeHtml(donation.message || '-')}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm font-medium text-green-600">${formatRupiah(donation.amount)}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm">
+                            <span class="badge-${donation.attendance || 'pending'}">${getStatusLabel(donation.attendance)}</span>
+                        </td>
+                        <td class="px-4 md:px-6 py-4 text-sm">${escapeHtml(donation.paymentMethod || '-')}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm">${donation.attendanceCount || 0}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm">${formatDate(donation.createdAt)}</td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+        }
+
+        function loadDonasiTable() {
+            const tbody = document.getElementById('donasi-table-body');
+            if (!tbody) return;
+            
+            const sortedDonations = [...donations].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            
+            if (sortedDonations.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">Belum ada donasi</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            sortedDonations.forEach((donation, index) => {
+                html += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 md:px-6 py-4 text-sm">${index + 1}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm font-medium">${escapeHtml(donation.name || '-')}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm font-medium text-green-600">${formatRupiah(donation.amount)}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm max-w-xs truncate">${escapeHtml(donation.message || '-')}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm">${escapeHtml(donation.paymentMethod || '-')}</td>
+                        <td class="px-4 md:px-6 py-4 text-sm">
+                            <span class="badge-${donation.attendance || 'pending'}">${getStatusLabel(donation.attendance)}</span>
+                        </td>
+                        <td class="px-4 md:px-6 py-4 text-sm">${formatDate(donation.createdAt)}</td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+        }
+
+        function loadGuestSelect() {
+            const select = document.getElementById('guest-select');
+            if (!select) return;
+            
+            let options = '<option value="">Pilih tamu...</option>';
+            guests.forEach(guest => {
+                options += `<option value="${guest.id}">${escapeHtml(guest.nama)} - ${guest.wa || '-'}</option>`;
+            });
+            
+            select.innerHTML = options;
+        }
+
+        function loadQuickGenerateTable() {
+            const tbody = document.getElementById('quick-generate-table');
+            if (!tbody) return;
+            
+            if (guests.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Tidak ada data tamu</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            guests.slice(0, 5).forEach((guest, index) => {
+                html += `
+                    <tr>
+                        <td class="px-4 py-2 text-sm">${index + 1}</td>
+                        <td class="px-4 py-2 text-sm">${escapeHtml(guest.nama || '-')}</td>
+                        <td class="px-4 py-2 text-sm">${escapeHtml(guest.wa || '-')}</td>
+                        <td class="px-4 py-2 text-sm">
+                            <button onclick="generateAndShowLink('${guest.id}')" class="text-green-600 hover:text-green-800 text-sm flex items-center gap-1">
+                                <i class="fas fa-link"></i> Generate
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+        }
+
+        // ==================== GENERATOR FUNCTIONS ====================
+
+        function generateInvitationLink(guestId) {
+            if (!guestId) return null;
+            return `${INVITATION_URL}?guest=${guestId}`;
+        }
+
+        function generateGuestLink(guestId) {
+            const guest = guests.find(g => g.id === guestId);
+            if (guest) {
+                const link = generateInvitationLink(guestId);
+                document.getElementById('generated-link').value = link;
+                showInvitationPreview(guest);
+                showSection('generator');
+            }
+        }
+
+        function generateAndShowLink(guestId) {
+            generateGuestLink(guestId);
+            showNotification('Link berhasil digenerate!', 'success');
+        }
+
+        function copyGuestLink(guestId) {
+            const guest = guests.find(g => g.id === guestId);
+            if (guest) {
+                const link = generateInvitationLink(guestId);
+                copyToClipboard(link, 'Link berhasil disalin!');
+            }
+        }
+
+        function copyGeneratedLink() {
+            const linkInput = document.getElementById('generated-link');
+            if (linkInput.value) {
+                copyToClipboard(linkInput.value, 'Link berhasil disalin!');
+            } else {
+                showNotification('Tidak ada link untuk disalin', 'error');
+            }
+        }
+
+        function copyToClipboard(text, successMessage) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification(successMessage, 'success');
+            }).catch(() => {
+                // Fallback untuk browser yang tidak support clipboard API
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showNotification(successMessage, 'success');
+            });
+        }
+
+        function testGeneratedLink() {
+            const link = document.getElementById('generated-link').value;
+            if (link) {
+                window.open(link, '_blank');
+            } else {
+                showNotification('Generate link terlebih dahulu!', 'error');
+            }
+        }
+
+        function shareViaWA() {
+            const link = document.getElementById('generated-link').value;
+            if (link) {
+                const guestId = getGuestIdFromLink(link);
+                const guest = guests.find(g => g.id === guestId);
+                const guestName = guest ? guest.nama : 'Bapak/Ibu';
+                
+                const template = document.getElementById('message-template').value;
+                const message = generateWAMessage(guestName, link, template);
+                
+                const waLink = `https://wa.me/?text=${encodeURIComponent(message)}`;
+                window.open(waLink, '_blank');
+            } else {
+                showNotification('Generate link terlebih dahulu!', 'error');
+            }
+        }
+
+        function shareViaTelegram() {
+            const link = document.getElementById('generated-link').value;
+            if (link) {
+                const guestId = getGuestIdFromLink(link);
+                const guest = guests.find(g => g.id === guestId);
+                const guestName = guest ? guest.nama : 'Bapak/Ibu';
+                
+                const template = document.getElementById('message-template').value;
+                const message = generateWAMessage(guestName, link, template);
+                
+                const telegramLink = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(message)}`;
+                window.open(telegramLink, '_blank');
+            } else {
+                showNotification('Generate link terlebih dahulu!', 'error');
+            }
+        }
+
+        function getGuestIdFromLink(link) {
+            const match = link.match(/[?&]guest=([^&]+)/);
+            return match ? match[1] : null;
+        }
+
+        function generateWAMessage(guestName, link, template) {
+            const templates = {
+                formal: `Assalamu'alaikum Wr. Wb.\n\nYth. ${guestName}\n\nDengan hormat, kami mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara khitanan putra kami:\n\n*Mifzal Kianu Alfaris*\n\nYang insya Allah akan dilaksanakan pada:\n📅 Rabu, 25-26 Maret 2026\n⏰ 08.00 WIB - Selesai\n📍 Home, Jl. Raya Tegal Panjang 22/05\n\nMohon konfirmasi kehadiran melalui link undangan berikut:\n${link}\n\nAtas kehadiran dan doa restunya, kami ucapkan terima kasih.\n\nWassalamu'alaikum Wr. Wb.\n\n*Kel. Bpk Ristanto & Ibu Nurfadilah*`,
+                
+                santai: `Halo ${guestName}!\n\nKami mengundang kamu untuk hadir di acara khitanan putra kami:\n\n*Mifzal Kianu Alfaris*\n\n🗓 Rabu, 25-26 Maret 2026\n⏰ 08.00 WIB\n📍 Home, Jl. Raya Tegal Panjang 22/05\n\nYuk konfirmasi kehadiran lewat link ini:\n${link}\n\nMakasih banyak! 🙏\n\nSalam,\nKeluarga Ristanto & Nurfadilah`,
+                
+                islami: `بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ\n\nAssalamu'alaikum Warahmatullahi Wabarakatuh\n\nKepada Yth. ${guestName}\n\nDengan memohon ridho Allah SWT, kami bermaksud mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara khitanan putra kami:\n\n*Mifzal Kianu Alfaris*\n\nInsya Allah akan dilaksanakan pada:\n📅 Rabu, 25-26 Maret 2026\n⏰ 08.00 WIB\n📍 Home, Jl. Raya Tegal Panjang 22/05\n\nMohon konfirmasi kehadiran melalui tautan berikut:\n${link}\n\nJazakumullahu khairan katsiran atas doa dan kehadirannya.\n\nWassalamu'alaikum Warahmatullahi Wabarakatuh\n\n*Keluarga Besar Bpk Ristanto & Ibu Nurfadilah*`
+            };
+            
+            return templates[template] || templates.formal;
+        }
+
+        function showInvitationPreview(guest) {
+            const previewDiv = document.getElementById('invitation-preview');
+            previewDiv.classList.remove('hidden');
+            
+            previewDiv.innerHTML = `
+                <p class="text-[#D4AF37] text-xs mb-2">Preview Undangan:</p>
+                <p class="text-white text-sm mb-2">Assalamu'alaikum, <span class="text-[#D4AF37]">${escapeHtml(guest.nama)}</span></p>
+                <p class="text-gray-300 text-xs mb-3">Anda diundang ke acara khitanan:</p>
+                <p class="text-white text-sm font-bold mb-2">Mifzal Kianu Alfaris</p>
+                <p class="text-gray-300 text-xs mb-1">📅 Rabu, 25-26 Maret 2026 | 08.00 WIB</p>
+                <p class="text-gray-300 text-xs">📍 Home, Jl. Raya Tegal Panjang 22/05</p>
+                <div class="mt-3 pt-2 border-t border-[#D4AF37]/30">
+                    <p class="text-[#D4AF37] text-xs">Link undangan sudah siap, silakan copy dan bagikan.</p>
+                </div>
+            `;
+        }
+
+        // ==================== UTILITY FUNCTIONS ====================
+
+        function formatRupiah(amount) {
+            if (!amount) return 'Rp 0';
+            return 'Rp ' + new Intl.NumberFormat('id-ID').format(amount);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('id-ID', { 
+                day: 'numeric', 
+                month: 'short', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                'hadir': 'Hadir',
+                'tidak': 'Tidak Hadir',
+                'pending': 'Pending',
+                'ragu': 'Ragu-ragu'
+            };
+            return labels[status] || status || 'Pending';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showNotification(message, type = 'info') {
+            alert(message); // Simple alert for now
+        }
+
+        // ==================== EXPORT FUNCTION ====================
+
+        function exportAllData() {
+            // Tampilkan loading
+            document.getElementById('exportLoading').style.display = 'flex';
+            
+            // Cek data sudah siap
+            if (!dataReady) {
+                setTimeout(() => {
+                    document.getElementById('exportLoading').style.display = 'none';
+                    showNotification('Data belum siap, silakan tunggu beberapa detik lalu coba lagi.', 'error');
+                }, 500);
+                return;
+            }
+
+            try {
+                console.log('Memulai export dengan data:', guests.length, 'tamu,', donations.length, 'donasi');
+
+                // Prepare data for Excel - Data Tamu
+                const guestData = guests.map((guest, index) => {
+                    // Cari donasi terkait berdasarkan guestId atau nama
+                    const relatedDonations = donations.filter(d => 
+                        d.guestId === guest.id || 
+                        (d.name && guest.nama && d.name.toLowerCase() === guest.nama.toLowerCase())
+                    );
+                    
+                    const totalDonasi = relatedDonations.reduce((sum, d) => sum + (parseInt(d.amount) || 0), 0);
+                    const donasiTerakhir = relatedDonations.length > 0 ? relatedDonations[0] : null;
+                    
+                    return {
+                        'No': index + 1,
+                        'Nama': guest.nama || '-',
+                        'No. WhatsApp': guest.wa || '-',
+                        'Status Kehadiran': getStatusLabel(guest.status),
+                        'Jumlah Kehadiran': guest.jumlahKehadiran || 0,
+                        'Total Donasi': totalDonasi,
+                        'Donasi Terakhir': donasiTerakhir ? formatRupiah(donasiTerakhir.amount) : '-',
+                        'Ucapan': donasiTerakhir ? (donasiTerakhir.message || '-') : '-',
+                        'Metode Pembayaran': donasiTerakhir ? (donasiTerakhir.paymentMethod || '-') : '-',
+                        'Link Undangan': generateInvitationLink(guest.id),
+                        'Tanggal Dibuat': formatDate(guest.createdAt),
+                        'Terakhir Update': formatDate(guest.updatedAt)
+                    };
+                });
+
+                // Prepare data for Excel - Data Donasi
+                const donationData = donations.map((donation, index) => {
+                    // Cari tamu terkait
+                    const relatedGuest = guests.find(g => 
+                        g.id === donation.guestId || 
+                        (g.nama && donation.name && g.nama.toLowerCase() === donation.name.toLowerCase())
+                    );
+                    
+                    return {
+                        'No': index + 1,
+                        'Nama Donatur': donation.name || '-',
+                        'Nominal Donasi': formatRupiah(donation.amount),
+                        'Ucapan/Doa': donation.message || '-',
+                        'Status Kehadiran': getStatusLabel(donation.attendance),
+                        'Jumlah Hadir': donation.attendanceCount || 0,
+                        'Metode Pembayaran': donation.paymentMethod || '-',
+                        'Terkait Tamu': relatedGuest ? relatedGuest.nama : '-',
+                        'Waktu Donasi': formatDate(donation.createdAt)
+                    };
+                });
+
+                // Create workbook dengan multiple sheets
+                const wb = XLSX.utils.book_new();
+
+                // Sheet 1: Data Tamu
+                const wsGuests = XLSX.utils.json_to_sheet(guestData);
+                XLSX.utils.book_append_sheet(wb, wsGuests, 'Data Tamu');
+
+                // Sheet 2: Data Donasi
+                const wsDonations = XLSX.utils.json_to_sheet(donationData);
+                XLSX.utils.book_append_sheet(wb, wsDonations, 'Data Donasi');
+
+                // Sheet 3: Ringkasan/Statistik
+                const summaryData = [
+                    ['Ringkasan Data Undangan Khitanan'],
+                    ['Tanggal Export', new Date().toLocaleString('id-ID')],
+                    [''],
+                    ['Statistik Tamu'],
+                    ['Total Tamu', guests.length],
+                    ['Konfirmasi Hadir', guests.filter(g => g.status === 'hadir').length],
+                    ['Tidak Hadir', guests.filter(g => g.status === 'tidak').length],
+                    ['Pending', guests.filter(g => g.status === 'pending').length],
+                    ['Ragu-ragu', guests.filter(g => g.status === 'ragu').length],
+                    ['Total Kehadiran', guests.reduce((sum, g) => sum + (parseInt(g.jumlahKehadiran) || 0), 0)],
+                    [''],
+                    ['Statistik Donasi'],
+                    ['Total Donasi', formatRupiah(donations.reduce((sum, d) => sum + (parseInt(d.amount) || 0), 0))],
+                    ['Jumlah Donatur', donations.length],
+                    ['Donasi Tertinggi', donations.length > 0 ? formatRupiah(Math.max(...donations.map(d => parseInt(d.amount) || 0))) : 'Rp 0'],
+                    ['Rata-rata Donasi', donations.length > 0 ? formatRupiah(donations.reduce((sum, d) => sum + (parseInt(d.amount) || 0), 0) / donations.length) : 'Rp 0']
+                ];
+
+                const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+                
+                // Atur lebar kolom untuk sheet summary
+                wsSummary['!cols'] = [{ wch: 25 }, { wch: 20 }];
+                
+                XLSX.utils.book_append_sheet(wb, wsSummary, 'Ringkasan');
+
+                // Generate filename with timestamp
+                const now = new Date();
+                const timestamp = now.toISOString().split('T')[0] + '_' + 
+                                 now.getHours().toString().padStart(2,'0') + 
+                                 now.getMinutes().toString().padStart(2,'0');
+                const filename = `data_khitanan_${timestamp}.xlsx`;
+
+                // Export file
+                XLSX.writeFile(wb, filename);
+                
+                console.log('Export berhasil:', filename);
+
+                // Sembunyikan loading
+                setTimeout(() => {
+                    document.getElementById('exportLoading').style.display = 'none';
+                }, 500);
+
+                showNotification(`Data berhasil diexport ke ${filename}`, 'success');
+
+            } catch (error) {
+                console.error('Error saat export:', error);
+                document.getElementById('exportLoading').style.display = 'none';
+                showNotification('Gagal export data: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== NAVIGATION & MODAL ====================
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            const selectedSection = document.getElementById(sectionId);
+            if (selectedSection) {
+                selectedSection.classList.remove('hidden');
+            }
+            
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('bg-gray-200', 'font-semibold');
+                if (link.getAttribute('data-section') === sectionId) {
+                    link.classList.add('bg-gray-200', 'font-semibold');
+                }
+            });
+        }
+
+        function openTamuModal(editId = null) {
+            document.getElementById('tamuModal').classList.remove('hidden');
+            document.getElementById('tamuModal').classList.add('flex');
+            if (editId) {
+                document.getElementById('modal-title').textContent = 'Edit Tamu';
+            } else {
+                document.getElementById('modal-title').textContent = 'Tambah Tamu';
+                document.getElementById('tamuForm').reset();
+                document.getElementById('tamu-id').value = '';
+            }
+        }
+
+        function closeTamuModal() {
+            document.getElementById('tamuModal').classList.add('hidden');
+            document.getElementById('tamuModal').classList.remove('flex');
+        }
+
+        function refreshData() {
+            dataReady = false;
+            loadData();
+            showNotification('Data berhasil direfresh!', 'success');
+        }
+
+        // ==================== INITIALIZATION ====================
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load data from Firebase
+            loadData();
+            
+            // Mobile menu toggle
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            
+            if (mobileMenuButton) {
+                mobileMenuButton.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    mobileMenu.classList.toggle('open');
+                    const icon = this.querySelector('i');
+                    icon.classList.toggle('fa-bars');
+                    icon.classList.toggle('fa-times');
+                });
+            }
+
+            // Close mobile menu when clicking outside
+            document.addEventListener('click', function(e) {
+                if (window.innerWidth < 640 && mobileMenu && mobileMenu.classList.contains('open')) {
+                    if (!mobileMenu.contains(e.target) && !mobileMenuButton.contains(e.target)) {
+                        mobileMenu.classList.remove('open');
+                        const icon = mobileMenuButton.querySelector('i');
+                        icon.classList.remove('fa-times');
+                        icon.classList.add('fa-bars');
+                    }
+                }
+            });
+
+            // Navigasi menu
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const sectionId = this.getAttribute('data-section');
+                    if (sectionId) {
+                        showSection(sectionId);
+                        
+                        // Close mobile menu if open
+                        if (mobileMenu && mobileMenu.classList.contains('open')) {
+                            mobileMenu.classList.remove('open');
+                            const icon = mobileMenuButton.querySelector('i');
+                            icon.classList.remove('fa-times');
+                            icon.classList.add('fa-bars');
+                        }
+                    }
+                });
+            });
+
+            // Form submit for tamu
+            const tamuForm = document.getElementById('tamuForm');
+            if (tamuForm) {
+                tamuForm.addEventListener('submit', saveTamu);
+            }
+
+            // Generator form submit
+            const generatorForm = document.getElementById('generator-form');
+            if (generatorForm) {
+                generatorForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const guestId = document.getElementById('guest-select').value;
+                    if (guestId) {
+                        generateGuestLink(guestId);
+                    } else {
+                        showNotification('Pilih tamu terlebih dahulu!', 'error');
+                    }
+                });
+            }
+
+            // Search and filter listeners
+            const searchInput = document.getElementById('search-input');
+            const filterSelect = document.getElementById('filter-status');
+            
+            if (searchInput) {
+                searchInput.addEventListener('input', debounce(loadCrudTable, 300));
+            }
+            
+            if (filterSelect) {
+                filterSelect.addEventListener('change', loadCrudTable);
+            }
+
+            // Show dashboard by default
+            showSection('dashboard');
+        });
+
+        // Debounce function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+    </script>
+</body>
+</html>
