@@ -395,7 +395,7 @@ function deleteTamu(id) {
 function generateGuestLink(nama, id) {
     const slug = nama.toLowerCase().replace(/\s+/g, '-') + '-' + id.slice(-6);
     // Hardcode base agar selalu benar ke GitHub Pages
-    const base = 'https://gunawan-13.github.io/khitanan-mifzal/';
+    const base = 'https://gunawan-13.github.io/khitanan-mifzal/undangan-khitan/';
     return base + 'undangan.html?nama=' + encodeURIComponent(slug);
 }
 
