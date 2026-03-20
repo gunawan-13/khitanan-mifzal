@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Admin Dashboard - Undangan Khitan</title>
+    <title>Login Admin - Undangan Khitan</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <!-- SheetJS for Excel export -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- FileSaver.js untuk menyimpan file -->
@@ -133,9 +134,87 @@
             padding: 1rem;
             color: white;
         }
+
+        /* Login page style */
+        .login-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .login-card {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 90%;
+            max-width: 400px;
+            margin: 1rem;
+        }
+        
+        .dashboard-content {
+            display: none;
+        }
+        
+        .dashboard-content.visible {
+            display: block;
+        }
     </style>
 </head>
-<body class="bg-gray-50">
+<body>
+    <!-- Login Page -->
+    <div id="loginContainer" class="login-container flex items-center justify-center p-4">
+        <div class="login-card p-6 md:p-8 w-full">
+            <div class="text-center mb-8">
+                <div class="flex justify-center mb-4">
+                    <i class="fas fa-mosque text-green-600 text-4xl"></i>
+                </div>
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Admin Login</h2>
+                <p class="text-gray-600 text-sm">Masuk ke dashboard undangan khitan</p>
+            </div>
+            
+            <form id="loginForm" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input type="email" id="email" required 
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                        placeholder="admin@example.com">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <input type="password" id="password" required 
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                        placeholder="••••••••">
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="remember" class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                        <label for="remember" class="ml-2 block text-sm text-gray-700">Ingat saya</label>
+                    </div>
+                    <button type="button" onclick="forgotPassword()" class="text-sm text-green-600 hover:text-green-800">Lupa password?</button>
+                </div>
+                
+                <button type="submit" 
+                    class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition duration-200 font-semibold text-sm md:text-base flex items-center justify-center">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Masuk
+                </button>
+                
+                <div id="loginError" class="text-red-600 text-sm text-center hidden mt-2">
+                    <i class="fas fa-exclamation-circle mr-1"></i>
+                    <span></span>
+                </div>
+            </form>
+            
+            <div class="mt-6 text-center">
+                <p class="text-xs text-gray-500">
+                    <i class="fas fa-shield-alt mr-1"></i>
+                    Login khusus admin. Hubungi developer jika mengalami kendala.
+                </p>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Tambah/Edit Tamu -->
     <div id="tamuModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-auto">
@@ -187,375 +266,384 @@
         </div>
     </div>
 
-    <!-- Navbar -->
-    <nav class="bg-white shadow-lg fixed w-full z-10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-14 sm:h-16 items-center">
-                <div class="flex items-center">
-                    <i class="fas fa-mosque text-green-600 text-2xl mr-2"></i>
-                    <span class="font-semibold text-xl text-gray-800">Admin Khitan</span>
-                </div>
-                
-                <!-- Desktop menu -->
-                <div class="desktop-menu hidden sm:flex items-center space-x-4">
-                    <a href="javascript:void(0)" class="nav-link px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center text-sm" data-section="dashboard">
-                        <i class="fas fa-chart-pie mr-2"></i>Dashboard
-                    </a>
-                    <a href="javascript:void(0)" class="nav-link px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center text-sm" data-section="tamu">
-                        <i class="fas fa-users mr-2"></i>Data Tamu
-                    </a>
-                    <a href="javascript:void(0)" class="nav-link px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center text-sm" data-section="donasi">
-                        <i class="fas fa-hand-holding-heart mr-2"></i>Donasi
-                    </a>
-                    <a href="javascript:void(0)" class="nav-link px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center text-sm" data-section="generator">
-                        <i class="fas fa-link mr-2"></i>Generator
-                    </a>
-                    <button onclick="openTamuModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center text-sm">
-                        <i class="fas fa-plus mr-2"></i>Tambah Tamu
-                    </button>
-                    <button onclick="exportAllData()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center text-sm">
-                        <i class="fas fa-file-excel mr-2"></i>Export Excel
-                    </button>
-                </div>
-
-                <!-- Mobile menu button -->
-                <div class="flex items-center sm:hidden">
-                    <button id="mobile-menu-button" class="text-gray-500 hover:text-gray-600 focus:outline-none z-50 p-2" aria-label="Menu">
-                        <i class="fas fa-bars text-2xl"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mobile menu dropdown -->
-        <div id="mobile-menu" class="mobile-menu fixed top-14 left-0 w-full bg-white shadow-lg z-40 sm:hidden">
-            <div class="flex flex-col py-2 px-4 space-y-2 border-t border-gray-200">
-                <a href="javascript:void(0)" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center" data-section="dashboard">
-                    <i class="fas fa-chart-pie mr-3 w-5"></i>Dashboard
-                </a>
-                <a href="javascript:void(0)" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center" data-section="tamu">
-                    <i class="fas fa-users mr-3 w-5"></i>Data Tamu
-                </a>
-                <a href="javascript:void(0)" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center" data-section="donasi">
-                    <i class="fas fa-hand-holding-heart mr-3 w-5"></i>Donasi
-                </a>
-                <a href="javascript:void(0)" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center" data-section="generator">
-                    <i class="fas fa-link mr-3 w-5"></i>Generator
-                </a>
-                <div class="border-t border-gray-200 my-2"></div>
-                <button onclick="openTamuModal()" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center w-full text-left">
-                    <i class="fas fa-plus mr-3 w-5 text-green-600"></i>Tambah Tamu
-                </button>
-                <button onclick="exportAllData()" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center w-full text-left">
-                    <i class="fas fa-file-excel mr-3 w-5 text-blue-600"></i>Export Data Excel
-                </button>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Main Content -->
-    <main class="pt-20 pb-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <!-- Dashboard Section -->
-        <section id="dashboard" class="section mb-10">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800">Dashboard</h2>
-                <div class="flex items-center mt-2 sm:mt-0">
-                    <span class="text-sm text-gray-500 mr-2">
-                        <i class="fas fa-sync-alt mr-1"></i>Update real-time
-                    </span>
-                    <button onclick="refreshData()" class="text-green-600 hover:text-green-700" title="Refresh data">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Stats Cards -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div class="bg-white rounded-xl shadow-md p-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm text-gray-500 mb-1">Total Tamu</p>
-                            <h3 class="text-2xl font-bold" id="totalTamu">0</h3>
-                        </div>
-                        <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                            <i class="fas fa-users text-green-600 text-xl"></i>
-                        </div>
+    <!-- Dashboard Content -->
+    <div id="dashboardContent" class="dashboard-content">
+        <!-- Navbar -->
+        <nav class="bg-white shadow-lg fixed w-full z-10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-14 sm:h-16 items-center">
+                    <div class="flex items-center">
+                        <i class="fas fa-mosque text-green-600 text-2xl mr-2"></i>
+                        <span class="font-semibold text-xl text-gray-800">Admin Khitan</span>
                     </div>
-                </div>
-                
-                <div class="bg-white rounded-xl shadow-md p-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm text-gray-500 mb-1">Konfirmasi Hadir</p>
-                            <h3 class="text-2xl font-bold" id="totalHadir">0</h3>
-                        </div>
-                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                            <i class="fas fa-check-circle text-blue-600 text-xl"></i>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="bg-white rounded-xl shadow-md p-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm text-gray-500 mb-1">Total Donasi</p>
-                            <h3 class="text-2xl font-bold" id="totalDonasi">Rp 0</h3>
-                        </div>
-                        <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                            <i class="fas fa-hand-holding-heart text-yellow-600 text-xl"></i>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="bg-white rounded-xl shadow-md p-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm text-gray-500 mb-1">Total Kehadiran</p>
-                            <h3 class="text-2xl font-bold" id="totalKehadiran">0</h3>
-                        </div>
-                        <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                            <i class="fas fa-user-friends text-purple-600 text-xl"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tabel Data Ucapan & Donasi -->
-            <div class="bg-white rounded-xl shadow-md overflow-hidden mt-8">
-                <div class="px-4 md:px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-800">Ucapan & Donasi dari Tamu</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[800px]">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ucapan</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nominal Donasi</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metode</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jml Kehadiran</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ucapan-donasi-table" class="divide-y divide-gray-200">
-                            <!-- Data will be inserted via JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- Tamu Management Section -->
-        <section id="tamu" class="section hidden mb-10">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Manajemen Tamu</h2>
-            
-            <div class="flex justify-end mb-4 sm:hidden">
-                <button onclick="openTamuModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm flex items-center">
-                    <i class="fas fa-plus mr-2"></i>Tambah Tamu
-                </button>
-            </div>
-            
-            <!-- Search and Filter -->
-            <div class="bg-white rounded-xl shadow-md p-4 md:p-6 mb-6">
-                <div class="flex flex-col sm:flex-row gap-4">
-                    <div class="flex-1">
-                        <div class="relative">
-                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                            <input type="text" id="search-input" placeholder="Cari tamu..." 
-                                class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm md:text-base">
-                        </div>
-                    </div>
-                    <div class="sm:w-48">
-                        <select id="filter-status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm md:text-base">
-                            <option value="all">Semua Status</option>
-                            <option value="hadir">Hadir</option>
-                            <option value="tidak">Tidak Hadir</option>
-                            <option value="pending">Pending</option>
-                            <option value="ragu">Ragu-ragu</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- CRUD Table -->
-            <div class="bg-white rounded-xl shadow-md overflow-hidden">
-                <div class="px-4 md:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <h3 class="text-lg font-semibold text-gray-800">Daftar Tamu</h3>
-                    <button onclick="openTamuModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm hidden sm:flex items-center">
-                        <i class="fas fa-plus mr-2"></i>Tambah Tamu
-                    </button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No. WhatsApp</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jml Kehadiran</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Donasi</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Link Undangan</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="crud-table-body" class="divide-y divide-gray-200">
-                            <!-- Data will be inserted via JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- Donasi Management Section -->
-        <section id="donasi" class="section hidden mb-10">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Manajemen Donasi</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-white rounded-xl shadow-md p-6">
-                    <p class="text-sm text-gray-500 mb-1">Total Donasi</p>
-                    <h3 class="text-2xl font-bold" id="totalDonasiDetail">Rp 0</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-md p-6">
-                    <p class="text-sm text-gray-500 mb-1">Jumlah Donatur</p>
-                    <h3 class="text-2xl font-bold" id="totalDonatur">0</h3>
-                </div>
-                <div class="bg-white rounded-xl shadow-md p-6">
-                    <p class="text-sm text-gray-500 mb-1">Donasi Tertinggi</p>
-                    <h3 class="text-2xl font-bold" id="donasiTertinggi">Rp 0</h3>
-                </div>
-            </div>
-            
-            <div class="bg-white rounded-xl shadow-md overflow-hidden">
-                <div class="px-4 md:px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-800">Daftar Donasi</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nominal</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ucapan</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metode</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu</th>
-                            </tr>
-                        </thead>
-                        <tbody id="donasi-table-body" class="divide-y divide-gray-200">
-                            <!-- Data will be inserted via JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- Generator Section -->
-        <section id="generator" class="section hidden mb-10">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Generator Link Undangan</h2>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Generator Form -->
-                <div class="bg-white rounded-xl shadow-md p-4 md:p-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Buat Link Undangan</h3>
                     
-                    <form id="generator-form" class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Pilih Tamu</label>
-                            <select id="guest-select" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm md:text-base">
-                                <option value="">Pilih tamu...</option>
-                                <!-- Options will be loaded via JS -->
-                            </select>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Template Pesan</label>
-                            <select id="message-template" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm md:text-base">
-                                <option value="formal">Formal</option>
-                                <option value="santai">Santai</option>
-                                <option value="islami">Islami</option>
-                            </select>
-                        </div>
-
-                        <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm md:text-base">
-                            <i class="fas fa-link mr-2"></i>Generate Link
+                    <!-- Desktop menu -->
+                    <div class="desktop-menu hidden sm:flex items-center space-x-4">
+                        <a href="javascript:void(0)" class="nav-link px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center text-sm" data-section="dashboard">
+                            <i class="fas fa-chart-pie mr-2"></i>Dashboard
+                        </a>
+                        <a href="javascript:void(0)" class="nav-link px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center text-sm" data-section="tamu">
+                            <i class="fas fa-users mr-2"></i>Data Tamu
+                        </a>
+                        <a href="javascript:void(0)" class="nav-link px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center text-sm" data-section="donasi">
+                            <i class="fas fa-hand-holding-heart mr-2"></i>Donasi
+                        </a>
+                        <a href="javascript:void(0)" class="nav-link px-3 py-2 rounded-lg hover:bg-gray-100 transition flex items-center text-sm" data-section="generator">
+                            <i class="fas fa-link mr-2"></i>Generator
+                        </a>
+                        <button onclick="openTamuModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center text-sm">
+                            <i class="fas fa-plus mr-2"></i>Tambah Tamu
                         </button>
-                    </form>
+                        <button onclick="exportAllData()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center text-sm">
+                            <i class="fas fa-file-excel mr-2"></i>Export Excel
+                        </button>
+                        <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition flex items-center text-sm">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Keluar
+                        </button>
+                    </div>
 
-                    <!-- Informasi Path -->
-                    <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
-                        <i class="fas fa-info-circle mr-1"></i>
-                        <strong>Info:</strong> Link akan mengarah ke file <code class="bg-yellow-100 px-1 rounded">undangan.html</code> di folder yang sama.
+                    <!-- Mobile menu button -->
+                    <div class="flex items-center sm:hidden">
+                        <button id="mobile-menu-button" class="text-gray-500 hover:text-gray-600 focus:outline-none z-50 p-2" aria-label="Menu">
+                            <i class="fas fa-bars text-2xl"></i>
+                        </button>
                     </div>
                 </div>
+            </div>
 
-                <!-- Result and Preview -->
-                <div class="bg-white rounded-xl shadow-md p-4 md:p-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Hasil Generate</h3>
+            <!-- Mobile menu dropdown -->
+            <div id="mobile-menu" class="mobile-menu fixed top-14 left-0 w-full bg-white shadow-lg z-40 sm:hidden">
+                <div class="flex flex-col py-2 px-4 space-y-2 border-t border-gray-200">
+                    <a href="javascript:void(0)" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center" data-section="dashboard">
+                        <i class="fas fa-chart-pie mr-3 w-5"></i>Dashboard
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center" data-section="tamu">
+                        <i class="fas fa-users mr-3 w-5"></i>Data Tamu
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center" data-section="donasi">
+                        <i class="fas fa-hand-holding-heart mr-3 w-5"></i>Donasi
+                    </a>
+                    <a href="javascript:void(0)" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center" data-section="generator">
+                        <i class="fas fa-link mr-3 w-5"></i>Generator
+                    </a>
+                    <div class="border-t border-gray-200 my-2"></div>
+                    <button onclick="openTamuModal()" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center w-full text-left">
+                        <i class="fas fa-plus mr-3 w-5 text-green-600"></i>Tambah Tamu
+                    </button>
+                    <button onclick="exportAllData()" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center w-full text-left">
+                        <i class="fas fa-file-excel mr-3 w-5 text-blue-600"></i>Export Data Excel
+                    </button>
+                    <button onclick="logout()" class="nav-link px-3 py-3 rounded-lg hover:bg-gray-100 transition flex items-center w-full text-left">
+                        <i class="fas fa-sign-out-alt mr-3 w-5 text-red-600"></i>Keluar
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="pt-20 pb-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="section mb-10">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Dashboard</h2>
+                    <div class="flex items-center mt-2 sm:mt-0">
+                        <span class="text-sm text-gray-500 mr-2">
+                            <i class="fas fa-sync-alt mr-1"></i>Update real-time
+                        </span>
+                        <button onclick="refreshData()" class="text-green-600 hover:text-green-700" title="Refresh data">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Total Tamu</p>
+                                <h3 class="text-2xl font-bold" id="totalTamu">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-users text-green-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
                     
-                    <div id="generator-result" class="space-y-4">
-                        <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
-                            <p class="text-sm text-gray-600 mb-2">Link Undangan:</p>
-                            
-                            <!-- Link Display -->
-                            <div class="flex flex-col sm:flex-row gap-2 mb-3">
-                                <input id="generated-link" type="text" readonly 
-                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500" 
-                                    placeholder="Belum digenerate">
-                                <button onclick="copyGeneratedLink()" 
-                                    class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 text-sm flex items-center justify-center gap-2">
-                                    <i class="fas fa-copy"></i>Copy
-                                </button>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Konfirmasi Hadir</p>
+                                <h3 class="text-2xl font-bold" id="totalHadir">0</h3>
                             </div>
-
-                            <!-- Action Buttons -->
-                            <div class="flex flex-wrap gap-2 mb-4">
-                                <button onclick="testGeneratedLink()" 
-                                    class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm flex items-center gap-2">
-                                    <i class="fas fa-external-link-alt"></i>Test Link
-                                </button>
-                                <button onclick="shareViaWA()" 
-                                    class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm flex items-center gap-2">
-                                    <i class="fab fa-whatsapp"></i>Share WA
-                                </button>
-                                <button onclick="shareViaTelegram()" 
-                                    class="bg-blue-400 text-white px-4 py-2 rounded-lg hover:bg-blue-500 text-sm flex items-center gap-2">
-                                    <i class="fab fa-telegram"></i>Share Telegram
-                                </button>
+                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-check-circle text-blue-600 text-xl"></i>
                             </div>
-
-                            <!-- Preview Undangan -->
-                            <div id="invitation-preview" class="mt-4 p-4 invitation-preview-card hidden">
-                                <!-- Preview akan diisi oleh JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Total Donasi</p>
+                                <h3 class="text-2xl font-bold" id="totalDonasi">Rp 0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-hand-holding-heart text-yellow-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Total Kehadiran</p>
+                                <h3 class="text-2xl font-bold" id="totalKehadiran">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user-friends text-purple-600 text-xl"></i>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Daftar Tamu untuk Generate Cepat -->
-            <div class="mt-6 bg-white rounded-xl shadow-md p-4 md:p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Generate Cepat per Tamu</h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">No</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">WhatsApp</th>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="quick-generate-table" class="divide-y divide-gray-200">
-                            <!-- Data akan diisi via JS -->
-                        </tbody>
-                    </table>
+                <!-- Tabel Data Ucapan & Donasi -->
+                <div class="bg-white rounded-xl shadow-md overflow-hidden mt-8">
+                    <div class="px-4 md:px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-800">Ucapan & Donasi dari Tamu</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[800px]">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ucapan</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nominal Donasi</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metode</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jml Kehadiran</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ucapan-donasi-table" class="divide-y divide-gray-200">
+                                <!-- Data will be inserted via JS -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
-        </section>
-    </main>
+            </section>
+
+            <!-- Tamu Management Section -->
+            <section id="tamu" class="section hidden mb-10">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Manajemen Tamu</h2>
+                
+                <div class="flex justify-end mb-4 sm:hidden">
+                    <button onclick="openTamuModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm flex items-center">
+                        <i class="fas fa-plus mr-2"></i>Tambah Tamu
+                    </button>
+                </div>
+                
+                <!-- Search and Filter -->
+                <div class="bg-white rounded-xl shadow-md p-4 md:p-6 mb-6">
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="flex-1">
+                            <div class="relative">
+                                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                                <input type="text" id="search-input" placeholder="Cari tamu..." 
+                                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm md:text-base">
+                            </div>
+                        </div>
+                        <div class="sm:w-48">
+                            <select id="filter-status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm md:text-base">
+                                <option value="all">Semua Status</option>
+                                <option value="hadir">Hadir</option>
+                                <option value="tidak">Tidak Hadir</option>
+                                <option value="pending">Pending</option>
+                                <option value="ragu">Ragu-ragu</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CRUD Table -->
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="px-4 md:px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <h3 class="text-lg font-semibold text-gray-800">Daftar Tamu</h3>
+                        <button onclick="openTamuModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm hidden sm:flex items-center">
+                            <i class="fas fa-plus mr-2"></i>Tambah Tamu
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No. WhatsApp</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jml Kehadiran</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Donasi</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Link Undangan</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="crud-table-body" class="divide-y divide-gray-200">
+                                <!-- Data will be inserted via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Donasi Management Section -->
+            <section id="donasi" class="section hidden mb-10">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Manajemen Donasi</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <p class="text-sm text-gray-500 mb-1">Total Donasi</p>
+                        <h3 class="text-2xl font-bold" id="totalDonasiDetail">Rp 0</h3>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <p class="text-sm text-gray-500 mb-1">Jumlah Donatur</p>
+                        <h3 class="text-2xl font-bold" id="totalDonatur">0</h3>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <p class="text-sm text-gray-500 mb-1">Donasi Tertinggi</p>
+                        <h3 class="text-2xl font-bold" id="donasiTertinggi">Rp 0</h3>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="px-4 md:px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-800">Daftar Donasi</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nominal</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ucapan</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Metode</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu</th>
+                                </tr>
+                            </thead>
+                            <tbody id="donasi-table-body" class="divide-y divide-gray-200">
+                                <!-- Data will be inserted via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Generator Section -->
+            <section id="generator" class="section hidden mb-10">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Generator Link Undangan</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Generator Form -->
+                    <div class="bg-white rounded-xl shadow-md p-4 md:p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Buat Link Undangan</h3>
+                        
+                        <form id="generator-form" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Pilih Tamu</label>
+                                <select id="guest-select" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm md:text-base">
+                                    <option value="">Pilih tamu...</option>
+                                    <!-- Options will be loaded via JS -->
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Template Pesan</label>
+                                <select id="message-template" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 text-sm md:text-base">
+                                    <option value="formal">Formal</option>
+                                    <option value="santai">Santai</option>
+                                    <option value="islami">Islami</option>
+                                </select>
+                            </div>
+
+                            <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm md:text-base">
+                                <i class="fas fa-link mr-2"></i>Generate Link
+                            </button>
+                        </form>
+
+                        <!-- Informasi Path -->
+                        <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            <strong>Info:</strong> Link akan mengarah ke file <code class="bg-yellow-100 px-1 rounded">undangan.html</code> di folder yang sama.
+                        </div>
+                    </div>
+
+                    <!-- Result and Preview -->
+                    <div class="bg-white rounded-xl shadow-md p-4 md:p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Hasil Generate</h3>
+                        
+                        <div id="generator-result" class="space-y-4">
+                            <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+                                <p class="text-sm text-gray-600 mb-2">Link Undangan:</p>
+                                
+                                <!-- Link Display -->
+                                <div class="flex flex-col sm:flex-row gap-2 mb-3">
+                                    <input id="generated-link" type="text" readonly 
+                                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500" 
+                                        placeholder="Belum digenerate">
+                                    <button onclick="copyGeneratedLink()" 
+                                        class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 text-sm flex items-center justify-center gap-2">
+                                        <i class="fas fa-copy"></i>Copy
+                                    </button>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="flex flex-wrap gap-2 mb-4">
+                                    <button onclick="testGeneratedLink()" 
+                                        class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm flex items-center gap-2">
+                                        <i class="fas fa-external-link-alt"></i>Test Link
+                                    </button>
+                                    <button onclick="shareViaWA()" 
+                                        class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm flex items-center gap-2">
+                                        <i class="fab fa-whatsapp"></i>Share WA
+                                    </button>
+                                    <button onclick="shareViaTelegram()" 
+                                        class="bg-blue-400 text-white px-4 py-2 rounded-lg hover:bg-blue-500 text-sm flex items-center gap-2">
+                                        <i class="fab fa-telegram"></i>Share Telegram
+                                    </button>
+                                </div>
+
+                                <!-- Preview Undangan -->
+                                <div id="invitation-preview" class="mt-4 p-4 invitation-preview-card hidden">
+                                    <!-- Preview akan diisi oleh JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Daftar Tamu untuk Generate Cepat -->
+                <div class="mt-6 bg-white rounded-xl shadow-md p-4 md:p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Generate Cepat per Tamu</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">No</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">WhatsApp</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quick-generate-table" class="divide-y divide-gray-200">
+                                <!-- Data akan diisi via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
 
     <script>
         // Firebase Configuration
@@ -573,6 +661,7 @@
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        const auth = firebase.auth();
 
         // Global variables
         let guests = [];
@@ -582,6 +671,108 @@
 
         // Base URL untuk undangan (GitHub Pages)
         const INVITATION_URL = 'https://gunawan-13.github.io/khitanan-mifzal/undangan-khitan/undangan.html';
+
+        // ==================== LOGIN FUNCTIONS ====================
+        
+        // Cek session login
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // User is logged in
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('dashboardContent').classList.add('visible');
+                loadData();
+            } else {
+                // User is logged out
+                document.getElementById('loginContainer').style.display = 'flex';
+                document.getElementById('dashboardContent').classList.remove('visible');
+            }
+        });
+
+        // Handle login form
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const remember = document.getElementById('remember').checked;
+            
+            // Set persistence based on remember me
+            const persistence = remember ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION;
+            
+            auth.setPersistence(persistence)
+                .then(() => {
+                    return auth.signInWithEmailAndPassword(email, password);
+                })
+                .then((userCredential) => {
+                    // Login successful
+                    console.log('Login berhasil:', userCredential.user.email);
+                    document.getElementById('loginError').classList.add('hidden');
+                })
+                .catch((error) => {
+                    // Login failed
+                    const errorElement = document.getElementById('loginError');
+                    const errorSpan = errorElement.querySelector('span');
+                    
+                    let errorMessage = 'Login gagal. ';
+                    switch (error.code) {
+                        case 'auth/user-not-found':
+                            errorMessage += 'Email tidak terdaftar.';
+                            break;
+                        case 'auth/wrong-password':
+                            errorMessage += 'Password salah.';
+                            break;
+                        case 'auth/invalid-email':
+                            errorMessage += 'Format email tidak valid.';
+                            break;
+                        default:
+                            errorMessage += error.message;
+                    }
+                    
+                    errorSpan.textContent = errorMessage;
+                    errorElement.classList.remove('hidden');
+                });
+        });
+
+        // Forgot password function
+        function forgotPassword() {
+            const email = document.getElementById('email').value;
+            
+            if (!email) {
+                alert('Masukkan email Anda terlebih dahulu!');
+                document.getElementById('email').focus();
+                return;
+            }
+            
+            auth.sendPasswordResetEmail(email)
+                .then(() => {
+                    alert('Email reset password telah dikirim. Silakan cek inbox/spam folder Anda.');
+                })
+                .catch((error) => {
+                    let errorMessage = 'Gagal mengirim email reset. ';
+                    switch (error.code) {
+                        case 'auth/user-not-found':
+                            errorMessage += 'Email tidak terdaftar.';
+                            break;
+                        default:
+                            errorMessage += error.message;
+                    }
+                    alert(errorMessage);
+                });
+        }
+
+        // Logout function
+        function logout() {
+            auth.signOut()
+                .then(() => {
+                    console.log('Logout berhasil');
+                    // Reset form
+                    document.getElementById('loginForm').reset();
+                    document.getElementById('loginError').classList.add('hidden');
+                })
+                .catch((error) => {
+                    console.error('Logout error:', error);
+                });
+        }
 
         // ==================== DATABASE FUNCTIONS ====================
         
@@ -1215,9 +1406,6 @@
         // ==================== INITIALIZATION ====================
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Load data from Firebase
-            loadData();
-            
             // Mobile menu toggle
             const mobileMenuButton = document.getElementById('mobile-menu-button');
             const mobileMenu = document.getElementById('mobile-menu');
@@ -1296,7 +1484,7 @@
                 filterSelect.addEventListener('change', loadCrudTable);
             }
 
-            // Show dashboard by default
+            // Show dashboard by default after login
             showSection('dashboard');
         });
 
