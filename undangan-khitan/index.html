@@ -704,8 +704,8 @@
         // Base URL untuk undangan (GitHub Pages)
         const INVITATION_URL = 'https://gunawan-13.github.io/khitanan-mifzal/undangan-khitan/undangan.html';
         
-        // Emoji yang digunakan dalam pesan
-        const EMOJI_CALENDAR = '🗓️';
+        // Emoji yang digunakan dalam pesan (pastikan kompatibel dengan WhatsApp)
+        const EMOJI_CALENDAR = '📅';
         const EMOJI_CLOCK = '⏰';
         const EMOJI_LOCATION = '📍';
 
@@ -1134,7 +1134,7 @@
             const eventLocation = "Home, Jl. Raya Tegal Panjang 22/05";
             const host = "Kel. Bpk Ristanto & Ibu Nurfadilah";
             
-            // Template pesan dengan emoji yang sudah diperbaiki
+            // Template pesan dengan emoji yang sudah diperbaiki (menggunakan emoji standar WhatsApp)
             const templates = {
                 formal: `Assalamu'alaikum Wr. Wb.
 
@@ -1212,6 +1212,11 @@ ${host}`
                 showInvitationPreview(guest);
                 showSection('generator');
                 updateMessagePreview();
+                // Set guest select to match
+                const guestSelect = document.getElementById('guest-select');
+                if (guestSelect) {
+                    guestSelect.value = guestId;
+                }
             }
         }
 
@@ -1353,7 +1358,8 @@ ${host}`
         }
 
         function showNotification(message, type = 'info') {
-            alert(message); // Simple alert for now
+            // Gunakan alert untuk sementara
+            alert(message);
         }
 
         // ==================== EXPORT FUNCTION ====================
