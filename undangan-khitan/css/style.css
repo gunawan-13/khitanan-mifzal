@@ -1096,6 +1096,29 @@ section.visible {
     pointer-events: auto;
 }
 
+/* ==================== MARQUEE POSITIONING FOR LARGE SCREENS ==================== */
+@media (min-width: 1367px) {
+    /* Large laptop/desktop screens - move marquee lower */
+    .cover-page .absolute.bottom-3,
+    .cover-page .absolute.bottom-4,
+    .cover-page .absolute.bottom-5,
+    .cover-page .absolute.bottom-6,
+    .cover-page .absolute.bottom-10 {
+        bottom: 12px !important;
+    }
+}
+
+@media (min-width: 1921px) {
+    /* Ultra-wide screens - move marquee even lower */
+    .cover-page .absolute.bottom-3,
+    .cover-page .absolute.bottom-4,
+    .cover-page .absolute.bottom-5,
+    .cover-page .absolute.bottom-6,
+    .cover-page .absolute.bottom-10 {
+        bottom: 15px !important;
+    }
+}
+
 .select-none {
     user-select: none;
     -webkit-user-select: none;
